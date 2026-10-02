@@ -978,10 +978,36 @@ body .remote-source-card {
   font-size: calc(9.5px * var(--reader-scale));
   line-height: 1.7;
 }
+
+/* Visual separator between independent Lore Index record groups */
+.lore-index-note + .lore-index-sourcebar {
+  position: relative;
+  margin-top: 30px;
+  padding-top: 25px;
+}
+
+.lore-index-note + .lore-index-sourcebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(139,214,220,.42),
+    rgba(139,214,220,.14) 58%,
+    transparent
+  );
+}
 @media (max-width: 980px) {
   .lore-record-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 620px) {
+  .lore-index-note + .lore-index-sourcebar {
+    margin-top: 25px;
+    padding-top: 21px;
+  }
   .lore-index-head { align-items: start; }
   .lore-index-count { margin-top: 2px; }
   .lore-record summary { padding: 16px 15px 15px 17px; }
