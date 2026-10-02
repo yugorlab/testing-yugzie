@@ -236,6 +236,8 @@ window.DA_LANG.en = {
   "media.luna7.title": "Truth Amongst the Pages of Purana",
   "media.luna7.description": "Official Luna VII trailer, again listing Dottore among the voiced characters.",
   "sidebar.span.1": "TEXT SIZE",
+  "sidebar.contactTitle": "UPDATES & CONTACT",
+  "sidebar.contactDescription": "Follow project updates or send feedback, corrections and suggestions privately.",
   "header.language-group-title.1": "LANGUAGES",
   "header.language-group-title.2": "SCRIPT MODE",
   "header.language-option-name.1": "Future script",

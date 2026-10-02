@@ -236,6 +236,8 @@ window.DA_LANG.ru = {
   "media.luna7.title": "Truth Amongst the Pages of Purana",
   "media.luna7.description": "Официальный трейлер Luna VII, где Дотторе вновь указан среди озвученных персонажей.",
   "sidebar.span.1": "РАЗМЕР ТЕКСТА",
+  "sidebar.contactTitle": "ОБНОВЛЕНИЯ И СВЯЗЬ",
+  "sidebar.contactDescription": "Следите за обновлениями проекта или отправляйте отзывы, исправления и предложения в личные сообщения.",
   "header.language-group-title.1": "ЯЗЫКИ",
   "header.language-group-title.2": "РЕЖИМ ПИСЬМЕННОСТИ",
   "header.language-option-name.1": "Будущий режим",
