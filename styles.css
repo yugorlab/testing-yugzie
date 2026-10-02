@@ -23,7 +23,8 @@ body.teyvat-mode :where(p, .lead, .section-text, .timeline-note, .timeline p,
 }
 /* Only navigation controls that must stay immediately readable remain Latin. */
 body.teyvat-mode :where(.language-control, .language-control *, .lang-btn,
-  .icon-btn, .mobile-menu, .play, .teyvat-mode-note) {
+  .icon-btn, .mobile-menu, .play, .teyvat-mode-note,
+  .project-contact, .project-contact *) {
   font-family: "IBM Plex Mono", monospace !important;
   letter-spacing: .08em;
 }
@@ -151,6 +152,62 @@ button:focus-visible { outline: 1px solid var(--cyan); outline-offset: 3px; }
 .text-size-control input[type="range"]:focus-visible {
   outline: 1px solid var(--cyan);
   outline-offset: 4px;
+}
+
+.project-contact {
+  padding: 0 0 17px;
+  margin-bottom: 17px;
+  border-bottom: 1px solid var(--line);
+}
+.project-contact-link {
+  display: block;
+  padding: 11px 12px;
+  border: 1px solid rgba(139,214,220,.14);
+  background:
+    linear-gradient(135deg, rgba(139,214,220,.055), rgba(139,214,220,.015));
+  color: inherit;
+  text-decoration: none;
+  transition: .2s ease;
+}
+.project-contact-link:hover,
+.project-contact-link:focus-visible {
+  border-color: var(--line-strong);
+  background:
+    linear-gradient(135deg, rgba(139,214,220,.09), rgba(139,214,220,.025));
+  outline: none;
+}
+.project-contact-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--cyan);
+  font: 9px "IBM Plex Mono", monospace;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+.project-contact-arrow {
+  flex: 0 0 auto;
+  color: #6caeb4;
+  font-size: 12px;
+  transition: transform .2s ease;
+}
+.project-contact-link:hover .project-contact-arrow,
+.project-contact-link:focus-visible .project-contact-arrow {
+  transform: translate(2px,-2px);
+}
+.project-contact p {
+  margin: 8px 0 9px;
+  color: #617a7d;
+  font-size: 9.5px;
+  line-height: 1.55;
+}
+.project-contact-meta {
+  display: block;
+  color: #4e6d70;
+  font: 8px "IBM Plex Mono", monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
 /* Reading-size accessibility control.
