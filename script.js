@@ -211,6 +211,10 @@ function applyLanguage(lang) {
     const key = el.dataset.l10nAlt;
     el.alt = tr(key, sourceLang);
   });
+  document.querySelectorAll('[data-l10n-placeholder]').forEach(el => {
+    const key = el.dataset.l10nPlaceholder;
+    el.placeholder = tr(key, sourceLang);
+  });
 
   langButtons.forEach(btn => {
     const active = btn.dataset.lang === lang;
@@ -228,6 +232,14 @@ function applyLanguage(lang) {
       code: activeLangButton?.dataset.short || lang.toUpperCase()
     }, sourceLang));
   }
+
+  const searchButton = document.getElementById('searchTrigger');
+  if (searchButton) {
+    searchButton.title = tr('search.open', sourceLang);
+    searchButton.setAttribute('aria-label', tr('search.open', sourceLang));
+  }
+  const searchCloser = document.getElementById('searchClose');
+  if (searchCloser) searchCloser.setAttribute('aria-label', tr('search.close', sourceLang));
 
   const activeNav = document.querySelector('.nav-link.active');
   const activeSection = activeNav?.dataset.target || 'overview';
@@ -284,6 +296,129 @@ function loadMedia(id, scrollToAudio = false) {
 
 document.querySelectorAll('.audio-entry').forEach(btn => btn.addEventListener('click', () => loadMedia(btn.dataset.audioId)));
 document.querySelectorAll('[data-load-media]').forEach(btn => btn.addEventListener('click', () => loadMedia(btn.dataset.loadMedia, true)));
+
+
+// Client-side full-text search across the currently rendered archive.
+const searchOverlay = document.getElementById('archiveSearchOverlay');
+const searchTrigger = document.getElementById('searchTrigger');
+const searchClose = document.getElementById('searchClose');
+const searchInput = document.getElementById('archiveSearchInput');
+const searchResults = document.getElementById('archiveSearchResults');
+let searchReturnFocus = null;
+
+function normalizeSearchText(value) {
+  return String(value || '').toLocaleLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/ё/g, 'е').replace(/[’‘`]/g, "'")
+    .replace(/[^\p{L}\p{N}' -]/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function searchCandidates() {
+  const selectors = [
+    '.hero-copy', '.zandik-main', '.specimen-card', '.early-record', '.lore-record', '.timeline > article',
+    '.analysis-card', '.theory-card', '.fit-card', '.relationship-card',
+    '.scene-study', '.webttore-record', '.remote-source-card', '.audio-entry',
+    '.archive-grid > *', '.relationship-card'
+  ].join(',');
+  const nodes = [...document.querySelectorAll(selectors)].filter(el => el.closest('main'));
+  const seen = new Set();
+  return nodes.filter(el => {
+    if (seen.has(el)) return false;
+    seen.add(el);
+    const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+    return text.length >= 24 && !el.closest('[hidden]');
+  }).map((el, index) => {
+    if (!el.id) el.id = `archive-search-result-${index + 1}`;
+    const heading = el.querySelector('h2,h3,h4,h5,h6,.relation-name,.lore-record-label,.audio-entry-title');
+    const section = el.closest('main section[id]');
+    return {
+      el,
+      id: el.id,
+      title: (heading?.innerText || heading?.textContent || section?.querySelector('h2,h3')?.innerText || section?.id || tr('search.section')).trim(),
+      section: section ? (section.querySelector('.section-heading h3, h2, h3')?.innerText || section.id).trim() : '',
+      text: (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim()
+    };
+  });
+}
+
+function renderSearchResults() {
+  const query = normalizeSearchText(searchInput.value);
+  if (!query) {
+    searchResults.innerHTML = `<p class="search-empty">${escapeSearchHtml(tr('search.start'))}</p>`;
+    return;
+  }
+  const terms = query.split(' ').filter(Boolean);
+  const matches = searchCandidates().map(item => {
+    const haystack = normalizeSearchText(`${item.title} ${item.section} ${item.text}`);
+    const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
+    return { ...item, score };
+  }).filter(item => item.score === terms.length)
+    .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 30);
+  if (!matches.length) {
+    searchResults.innerHTML = `<p class="search-empty">${escapeSearchHtml(tr('search.noResults'))}</p>`;
+    return;
+  }
+  searchResults.innerHTML = matches.map(item => {
+    const snippet = makeSearchSnippet(item.text, terms[0]);
+    return `<button class="search-result" type="button" data-search-target="${escapeSearchHtml(item.id)}"><span class="search-result-title">${escapeSearchHtml(item.title)}</span><span class="search-result-meta">${escapeSearchHtml(item.section)}</span><span class="search-result-snippet">${escapeSearchHtml(snippet)}</span></button>`;
+  }).join('');
+}
+
+function escapeSearchHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+
+function makeSearchSnippet(text, term) {
+  const normalized = normalizeSearchText(text);
+  const index = normalized.indexOf(term);
+  if (index < 0 || text.length <= 190) return text.slice(0, 190) + (text.length > 190 ? '…' : '');
+  const start = Math.max(0, Math.min(text.length - 170, index - 65));
+  return (start > 0 ? '…' : '') + text.slice(start, start + 170).trim() + (start + 170 < text.length ? '…' : '');
+}
+
+function openArchiveSearch() {
+  searchReturnFocus = document.activeElement;
+  closeLanguageMenu();
+  setMobileMenu(false);
+  searchOverlay.hidden = false;
+  searchOverlay.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('search-open');
+  searchInput.value = '';
+  renderSearchResults();
+  requestAnimationFrame(() => searchInput.focus());
+}
+function closeArchiveSearch() {
+  searchOverlay.hidden = true;
+  searchOverlay.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('search-open');
+  if (searchReturnFocus && typeof searchReturnFocus.focus === 'function') searchReturnFocus.focus();
+}
+searchTrigger?.addEventListener('click', openArchiveSearch);
+searchClose?.addEventListener('click', closeArchiveSearch);
+searchInput?.addEventListener('input', renderSearchResults);
+searchOverlay?.addEventListener('click', event => {
+  if (event.target === searchOverlay) closeArchiveSearch();
+  const result = event.target.closest('[data-search-target]');
+  if (result) {
+    const target = document.getElementById(result.dataset.searchTarget);
+    closeArchiveSearch();
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target?.classList.add('search-result-focus');
+    window.setTimeout(() => target?.classList.remove('search-result-focus'), 1400);
+  }
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && searchOverlay && !searchOverlay.hidden) {
+    closeArchiveSearch();
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    if (searchOverlay.hidden) openArchiveSearch(); else searchInput.focus();
+  }
+  if (event.key === 'Enter' && searchOverlay && !searchOverlay.hidden && document.activeElement === searchInput) {
+    searchResults.querySelector('[data-search-target]')?.click();
+  }
+});
 
 applyLanguage('en');
 loadMedia('lazzo');

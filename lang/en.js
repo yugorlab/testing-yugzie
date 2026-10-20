@@ -452,5 +452,16 @@ window.DA_LANG.en = {
   "ui.author-site.1": "Personal site ↗",
   "ui.site-pending.1": "Personal site · link will be added later",
   "footer.span.1": "SUBJECT II ARCHIVE · FINAL 04 · LORE EXPANSION",
-  "aria.closeMenu": "Close menu"
+  "aria.closeMenu": "Close menu",
+  "search.kicker": "ARCHIVE INDEX",
+  "search.title": "Search the archive",
+  "search.placeholder": "Search names, terms, events…",
+  "search.hint": "Search across timeline, records, relationships and analysis.",
+  "search.start": "Enter a word or phrase to begin.",
+  "search.noResults": "No matches found. Try another query.",
+  "search.resultsCount": "Found: {count}",
+  "search.close": "Close search",
+  "search.open": "Search the archive",
+  "search.section": "Section",
+  "search.jump": "Jump to record"
 };
