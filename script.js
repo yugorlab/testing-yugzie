@@ -313,6 +313,13 @@ function normalizeSearchText(value) {
     .replace(/[^\p{L}\p{N}' -]/gu, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function elementSearchText(el) {
+  const raw = el.tagName === 'DETAILS'
+    ? (el.textContent || '')
+    : (el.innerText || el.textContent || '');
+  return raw.replace(/\s+/g, ' ').trim();
+}
+
 function searchCandidates() {
   const selectors = [
     '.hero-copy', '.zandik-main', '.specimen-card', '.early-record', '.lore-record', '.timeline > article',
@@ -325,7 +332,7 @@ function searchCandidates() {
   return nodes.filter(el => {
     if (seen.has(el)) return false;
     seen.add(el);
-    const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+    const text = elementSearchText(el);
     return text.length >= 24 && !el.closest('[hidden]');
   }).map((el, index) => {
     if (!el.id) el.id = `archive-search-result-${index + 1}`;
@@ -336,7 +343,7 @@ function searchCandidates() {
       id: el.id,
       title: (heading?.innerText || heading?.textContent || section?.querySelector('h2,h3')?.innerText || section?.id || tr('search.section')).trim(),
       section: section ? (section.querySelector('.section-heading h3, h2, h3')?.innerText || section.id).trim() : '',
-      text: (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim()
+      text: elementSearchText(el)
     };
   });
 }
@@ -344,36 +351,83 @@ function searchCandidates() {
 function renderSearchResults() {
   const query = normalizeSearchText(searchInput.value);
   if (!query) {
-    searchResults.innerHTML = `<p class="search-empty">${escapeSearchHtml(tr('search.start'))}</p>`;
+    searchResults.innerHTML = `<p class="search-empty">${escapeSearchHtml(tr('search.start', sourceLang))}</p>`;
     return;
   }
   const terms = query.split(' ').filter(Boolean);
   const matches = searchCandidates().map(item => {
-    const haystack = normalizeSearchText(`${item.title} ${item.section} ${item.text}`);
-    const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
-    return { ...item, score };
-  }).filter(item => item.score === terms.length)
-    .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 30);
+    const titleHaystack = normalizeSearchText(item.title);
+    const bodyHaystack = normalizeSearchText(`${item.title} ${item.section} ${item.text}`);
+    const titleHits = terms.reduce((s, t) => s + (titleHaystack.includes(t) ? 1 : 0), 0);
+    const bodyHits = terms.reduce((s, t) => s + (bodyHaystack.includes(t) ? 1 : 0), 0);
+    return { ...item, titleHits, bodyHits };
+  }).filter(item => item.bodyHits === terms.length)
+    .sort((a, b) =>
+      b.titleHits - a.titleHits ||
+      b.bodyHits - a.bodyHits ||
+      a.title.localeCompare(b.title)
+    )
+    .slice(0, 30);
+
   if (!matches.length) {
-    searchResults.innerHTML = `<p class="search-empty">${escapeSearchHtml(tr('search.noResults'))}</p>`;
+    searchResults.innerHTML = `<p class="search-empty">${escapeSearchHtml(tr('search.noResults', sourceLang))}</p>`;
     return;
   }
-  searchResults.innerHTML = matches.map(item => {
-    const snippet = makeSearchSnippet(item.text, terms[0]);
-    return `<button class="search-result" type="button" data-search-target="${escapeSearchHtml(item.id)}"><span class="search-result-title">${escapeSearchHtml(item.title)}</span><span class="search-result-meta">${escapeSearchHtml(item.section)}</span><span class="search-result-snippet">${escapeSearchHtml(snippet)}</span></button>`;
-  }).join('');
+
+  const countText = tr('search.resultsCount', sourceLang).replace('{count}', String(matches.length));
+  const jumpLabel = tr('search.jump', sourceLang);
+
+  searchResults.innerHTML =
+    `<p class="search-results-count">${escapeSearchHtml(countText)}</p>` +
+    matches.map(item => {
+      const rawSnippet = makeSearchSnippet(item.text, terms);
+      const snippetHtml = highlightSearchTerms(rawSnippet, terms);
+      const aria = `${jumpLabel}: ${item.title}`;
+      return `<button class="search-result" type="button" aria-label="${escapeSearchHtml(aria)}" data-search-target="${escapeSearchHtml(item.id)}"><span class="search-result-title">${escapeSearchHtml(item.title)}</span><span class="search-result-meta">${escapeSearchHtml(item.section)}</span><span class="search-result-snippet">${snippetHtml}</span></button>`;
+    }).join('');
+
+  searchResults.scrollTop = 0;
+}
+
+function highlightSearchTerms(text, terms) {
+  const safeTerms = (terms || []).filter(Boolean);
+  if (!safeTerms.length) return escapeSearchHtml(text);
+  const pattern = safeTerms
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .sort((a, b) => b.length - a.length)
+    .join('|');
+  if (!pattern) return escapeSearchHtml(text);
+  const re = new RegExp(`(${pattern})`, 'gi');
+  return String(text || '').split(re).map((part, i) =>
+    (i % 2 === 1)
+      ? `<mark>${escapeSearchHtml(part)}</mark>`
+      : escapeSearchHtml(part)
+  ).join('');
 }
 
 function escapeSearchHtml(value) {
   return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
 
-function makeSearchSnippet(text, term) {
-  const normalized = normalizeSearchText(text);
-  const index = normalized.indexOf(term);
-  if (index < 0 || text.length <= 190) return text.slice(0, 190) + (text.length > 190 ? '…' : '');
-  const start = Math.max(0, Math.min(text.length - 170, index - 65));
-  return (start > 0 ? '…' : '') + text.slice(start, start + 170).trim() + (start + 170 < text.length ? '…' : '');
+function makeSearchSnippet(text, terms) {
+  const safeTerms = (terms || []).filter(Boolean);
+  if (!safeTerms.length) {
+    return text.slice(0, 190) + (text.length > 190 ? '…' : '');
+  }
+  const lowerText = text.toLowerCase();
+  let bestIndex = -1;
+  for (const t of safeTerms) {
+    const idx = lowerText.indexOf(t.toLowerCase());
+    if (idx >= 0 && (bestIndex < 0 || idx < bestIndex)) bestIndex = idx;
+  }
+  if (bestIndex < 0) {
+    return text.slice(0, 190) + (text.length > 190 ? '…' : '');
+  }
+  if (text.length <= 190) return text;
+  const start = Math.max(0, Math.min(text.length - 170, bestIndex - 65));
+  return (start > 0 ? '…' : '') +
+    text.slice(start, start + 170).trim() +
+    (start + 170 < text.length ? '…' : '');
 }
 
 function openArchiveSearch() {
@@ -395,17 +449,26 @@ function closeArchiveSearch() {
 }
 searchTrigger?.addEventListener('click', openArchiveSearch);
 searchClose?.addEventListener('click', closeArchiveSearch);
-searchInput?.addEventListener('input', renderSearchResults);
+let searchDebounce;
+searchInput?.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(renderSearchResults, 120);
+});
 searchOverlay?.addEventListener('click', event => {
   if (event.target === searchOverlay) closeArchiveSearch();
   const result = event.target.closest('[data-search-target]');
-  if (result) {
-    const target = document.getElementById(result.dataset.searchTarget);
-    closeArchiveSearch();
-    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    target?.classList.add('search-result-focus');
-    window.setTimeout(() => target?.classList.remove('search-result-focus'), 1400);
+  if (!result) return;
+  const target = document.getElementById(result.dataset.searchTarget);
+  closeArchiveSearch();
+  if (!target) return;
+  let opener = target.closest('details');
+  while (opener) {
+    opener.open = true;
+    opener = opener.parentElement?.closest('details');
   }
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target.classList.add('search-result-focus');
+  window.setTimeout(() => target.classList.remove('search-result-focus'), 1400);
 });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && searchOverlay && !searchOverlay.hidden) {
