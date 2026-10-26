@@ -349,6 +349,7 @@ function searchCandidates() {
 }
 
 function renderSearchResults() {
+  const sourceLang = getContentLanguage(currentLang);
   const query = normalizeSearchText(searchInput.value);
   if (!query) {
     searchResults.innerHTML = `<p class="search-empty">${escapeSearchHtml(tr('search.start', sourceLang))}</p>`;
@@ -361,7 +362,7 @@ function renderSearchResults() {
     const titleHits = terms.reduce((s, t) => s + (titleHaystack.includes(t) ? 1 : 0), 0);
     const bodyHits = terms.reduce((s, t) => s + (bodyHaystack.includes(t) ? 1 : 0), 0);
     return { ...item, titleHits, bodyHits };
-  }).filter(item => item.bodyHits === terms.length)
+  }).filter(item => item.bodyHits > 0)
     .sort((a, b) =>
       b.titleHits - a.titleHits ||
       b.bodyHits - a.bodyHits ||
