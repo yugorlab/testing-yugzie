@@ -1371,3 +1371,7 @@ body .remote-source-card {
 
 body.search-open { overflow: hidden; }
 .search-result-focus { outline: 1px solid rgba(139,214,220,.55); outline-offset: 4px; }
+
+/* search · results counter and match highlight */
+.search-results-count { margin: 0 0 2px; color: var(--cyan-dim, #4b8f96);  font: 9px "IBM Plex Mono", monospace; letter-spacing: .12em; text-transform: uppercase; }
+.search-result-snippet mark { background: rgba(139,214,220,.18);  color: var(--text, #d7e5e5); padding: 0 1px; border-radius: 1px; }
